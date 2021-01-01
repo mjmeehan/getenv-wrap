@@ -6,6 +6,11 @@
 #include <dlfcn.h>
 #include <pthread.h>
 #include <assert.h>
+#include <string.h>
+#include <unistd.h>
+
+/* Env vars can be at max pagesize * 32 long. This is a hack */
+#define MAXENVLEN 4096*32
 
 static void init(void) __attribute__((constructor));
 
@@ -30,26 +35,51 @@ static void init(void) {
     }
 }
 
+char *strcpyxtnd(char *dest, const char *src) {
+    int len = strlen(src);
+    if(len > strlen(dest)) {
+        free(dest);
+        dest = malloc(sizeof(char) * (len + 1));
+    }
+    return strcpy(dest, src);
+}
+
 char *getenv(const char *name) {
+    static __thread char buffer[MAXENVLEN];
     fprintf(stderr, "Intercepting getenv\n");
     if(!_original_getenv)
 	    _original_getenv = (char *(*)(const char *)) dlsym(RTLD_NEXT, "getenv");
     assert(_original_getenv != NULL);
     pthread_rwlock_rdlock(&rwlock);
     char *ret = (*_original_getenv)(name);
-    pthread_rwlock_unlock(&rwlock);
-    return ret;
+    if(ret == NULL) {
+        pthread_rwlock_unlock(&rwlock);
+        return NULL;
+    } else {
+        assert(strlen(ret) + 1 < MAXENVLEN);
+        strcpy(buffer, ret);
+        pthread_rwlock_unlock(&rwlock);
+        return buffer;
+    }
 }
 
 char *secure_getenv(const char *name) {
+    static __thread char buffer[MAXENVLEN];
     fprintf(stderr, "Intercepting secure_getenv\n");
     if(!_original_secure_getenv)
 	   _original_secure_getenv = (char *(*)(const char *)) dlsym(RTLD_NEXT, "secure_getenv");
     assert(_original_secure_getenv != NULL);
     pthread_rwlock_rdlock(&rwlock);
     char *ret = (*_original_secure_getenv)(name);
-    pthread_rwlock_unlock(&rwlock);
-    return ret;
+    if(ret == NULL) {
+        pthread_rwlock_unlock(&rwlock);
+        return NULL;
+    } else {
+        assert(strlen(ret) + 1 < MAXENVLEN);
+        strcpy(buffer, ret);
+        pthread_rwlock_unlock(&rwlock);
+        return buffer;
+    }
 }
 
 int setenv(const char *name, const char *value, int overwrite) {
