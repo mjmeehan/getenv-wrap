@@ -38,7 +38,9 @@ static void init ( void )
 
 char *getenv ( const char *name )
 {
-        static __thread char buffer[MAXENVLEN];
+        static __thread char *buffer = NULL;
+        if ( buffer == NULL )
+                buffer = malloc ( MAXENVLEN );
         fprintf ( stderr, "Intercepting getenv %s\n", name );
         if ( strcmp ( name, "MALLOC_OPTIONS" ) == 0 ) {
                 fprintf ( stderr, "getenv looking for MALLOC_OPTIONS, custom allocators are incompatible with getenv-wrap. Terminating early\n" );
@@ -66,7 +68,9 @@ char *getenv ( const char *name )
 
 char *secure_getenv ( const char *name )
 {
-        static __thread char buffer[MAXENVLEN];
+        static __thread char* buffer = NULL;
+        if ( buffer == NULL )
+                buffer = malloc ( MAXENVLEN );
         fprintf ( stderr, "Intercepting secure_getenv\n" );
         if ( _original_secure_getenv == NULL )
                 _original_secure_getenv = ( char * ( * ) ( const char * ) ) dlsym ( RTLD_NEXT, "secure_getenv" );
