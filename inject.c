@@ -10,9 +10,7 @@
 
 #define DEBUG 0
 
-/* Env vars can be at max pagesize * 32 long. This is a hack
-   Would be better to use sysconf(_SC_PAGESIZE) at runtime    */
-#define MAXENVLEN 4096*32
+#define START_BUF 256
 
 static void init ( void ) __attribute__ ( ( constructor ( 101 ) ) );
 
@@ -45,8 +43,9 @@ static void init ( void )
 char *getenv ( const char *name )
 {
         static __thread char *buffer = NULL;
+        static __thread int bufsize = START_BUF;
         if ( buffer == NULL )
-                buffer = malloc ( MAXENVLEN );
+                buffer = malloc ( bufsize );
         fprintf ( stderr, "getenv-wrap: Intercepting getenv( %s )\n", name );
         if ( strcmp ( name, "MALLOC_OPTIONS" ) == 0 ) {
                 fprintf ( stderr, "getenv-wrap: Custom allocators are incompatible with getenv-wrap. Terminating early on getenv( MALLOC_OPTIONS )\n" );
@@ -64,7 +63,14 @@ char *getenv ( const char *name )
                 if ( DEBUG )  fprintf ( stderr, "Read unlock\n" );
                 return NULL;
         } else {
-                assert ( strlen ( ret ) < MAXENVLEN );
+                int retsize = strlen ( ret ) + 1;
+                if ( retsize > bufsize) {
+                    char* new_buffer = NULL;
+                    new_buffer = realloc(buffer, retsize);
+                    assert(new_buffer != NULL);
+                    buffer = new_buffer;
+                    bufsize = retsize;
+                }
                 strcpy ( buffer, ret );
                 pthread_rwlock_unlock ( &rwlock );
                 if ( DEBUG )  fprintf ( stderr, "Read unlock\n" );
@@ -75,8 +81,9 @@ char *getenv ( const char *name )
 char *secure_getenv ( const char *name )
 {
         static __thread char* buffer = NULL;
+        static __thread int bufsize = START_BUF;
         if ( buffer == NULL )
-                buffer = malloc ( MAXENVLEN );
+                buffer = malloc ( bufsize );
         fprintf ( stderr, "getenv-wrap: Intercepting secure_getenv( %s )\n", name );
         if ( _original_secure_getenv == NULL )
                 _original_secure_getenv = ( char * ( * ) ( const char * ) ) dlsym ( RTLD_NEXT, "secure_getenv" );
@@ -89,7 +96,14 @@ char *secure_getenv ( const char *name )
                 if ( DEBUG )  fprintf ( stderr, "Read unlock\n" );
                 return NULL;
         } else {
-                assert ( strlen ( ret ) < MAXENVLEN );
+                int retsize = strlen ( ret ) + 1;
+                if ( retsize > bufsize) {
+                    char* new_buffer = NULL;
+                    new_buffer = realloc(buffer, retsize);
+                    assert(new_buffer != NULL);
+                    buffer = new_buffer;
+                    bufsize = retsize;
+                }
                 strcpy ( buffer, ret );
                 pthread_rwlock_unlock ( &rwlock );
 
