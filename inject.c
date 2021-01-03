@@ -46,7 +46,7 @@ char *getenv ( const char *name )
         static __thread int bufsize = START_BUF;
         if ( buffer == NULL )
                 buffer = malloc ( bufsize );
-        fprintf ( stderr, "getenv-wrap: Intercepting getenv( %s )\n", name );
+        if ( DEBUG ) fprintf ( stderr, "getenv-wrap: Intercepting getenv( %s )\n", name );
         if ( strcmp ( name, "MALLOC_OPTIONS" ) == 0 ) {
                 fprintf ( stderr, "getenv-wrap: Custom allocators are incompatible with getenv-wrap. Terminating early on getenv( MALLOC_OPTIONS )\n" );
                 exit ( EXIT_FAILURE );
@@ -84,7 +84,7 @@ char *secure_getenv ( const char *name )
         static __thread int bufsize = START_BUF;
         if ( buffer == NULL )
                 buffer = malloc ( bufsize );
-        fprintf ( stderr, "getenv-wrap: Intercepting secure_getenv( %s )\n", name );
+        if ( DEBUG ) fprintf ( stderr, "getenv-wrap: Intercepting secure_getenv( %s )\n", name );
         if ( _original_secure_getenv == NULL )
                 _original_secure_getenv = ( char * ( * ) ( const char * ) ) dlsym ( RTLD_NEXT, "secure_getenv" );
         assert ( _original_secure_getenv != NULL );
@@ -114,7 +114,7 @@ char *secure_getenv ( const char *name )
 
 int setenv ( const char *name, const char *value, int overwrite )
 {
-        fprintf ( stderr, "getenv-wrap: Intercepting setenv( %s, ******, %d )\n", name, overwrite );
+        if ( DEBUG ) fprintf ( stderr, "getenv-wrap: Intercepting setenv( %s, ******, %d )\n", name, overwrite );
         if ( _original_setenv == NULL )
                 _original_setenv = ( int ( * ) ( const char *, const char *, int ) ) dlsym ( RTLD_NEXT, "setenv" );
         assert ( _original_setenv != NULL );
@@ -128,7 +128,7 @@ int setenv ( const char *name, const char *value, int overwrite )
 
 int unsetenv ( const char *name )
 {
-        fprintf ( stderr, "getenv-wrap: Intercepting unsetenv( %s )\n", name );
+        if ( DEBUG ) fprintf ( stderr, "getenv-wrap: Intercepting unsetenv( %s )\n", name );
         if ( _original_unsetenv == NULL )
                 _original_unsetenv = ( int ( * ) ( const char * ) ) dlsym ( RTLD_NEXT, "unsetenv" );
         assert ( _original_unsetenv != NULL );
